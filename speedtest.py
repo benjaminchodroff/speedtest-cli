@@ -1676,6 +1676,8 @@ def parse_args():
                         help='Show the version number and exit')
     parser.add_argument('--debug', action='store_true',
                         help=ARG_SUPPRESS, default=ARG_SUPPRESS)
+    parser.add_argument('--graph', action='store_true',default=False,
+			help='Run the automated test and graph')
 
     options = parser.parse_args()
     if isinstance(options, tuple):
@@ -1877,7 +1879,27 @@ def shell():
 
     if args.share and not machine_format:
         printer('Share results: %s' % results.share())
+    if args.graph:
+	graph()
 
+def graph():
+	import pandas as pd
+	import matplotlib
+	matplotlib.use('Agg')
+	df = pd.read_csv('/opt/speedtest.csv')
+	df.columns = ['ServerID','Sponsor','ServerName','Timestamp','Distance','Ping','Download','Upload','Share','IP Address']
+	df.drop(['ServerID','Sponsor','ServerName','Distance','Share','IP Address'],axis=1,inplace=True)
+	df['Timestamp'] = pd.to_datetime(df['Timestamp'])
+	df['Download'] = pd.to_numeric(df['Download'])
+	df.loc[:,'Download'] /= 1000*1000
+	df['Upload'] = pd.to_numeric(df['Upload'])
+	df.loc[:,'Upload'] /= 1000*1000
+	df['Ping'] = pd.to_numeric(df['Ping'])
+	df.index = pd.to_datetime(df['Timestamp'])
+	plot = df.resample('1D',on='Timestamp').mean().plot(figsize=(10,5),y=['Upload','Download'])
+	plot.set_ylabel("Mbps")
+	plot.set_title("Speedtest.net Performance")
+	plot.figure.savefig("/opt/speedtest.png",transparent=False)
 
 def main():
     try:
